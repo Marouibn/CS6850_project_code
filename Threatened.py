@@ -41,7 +41,7 @@ def greedy_iteration(n, p, B):
     # Fire break out here
     s = np.random.choice(G.nodes)
     #print(G.degree(s))
-    #print(len(nx.node_connected_component(G,s))/len(G.nodes))
+    ratio_cc = len(nx.node_connected_component(G,s))/len(G.nodes)
     state[s] = 3
     #draw_Gnp(G,state)
 
@@ -89,30 +89,103 @@ def greedy_iteration(n, p, B):
                 b=1
     
         #draw_Gnp(G,state)
-    return len([i for i in G.nodes if state[i]<=1])
+    return len([i for i in G.nodes if state[i]<=1]), ratio_cc
 
 
 
-def run_simulation(f, min_n = 5, max_n=1000, n_iterations=20):
+def run_simulation(p_f,B_f, min_n = 5, max_n=1000, n_iterations=20):
     
     Y = []
+    total_cc = 0
     for n in tqdm(range(min_n, max_n,5)):
         s=0
-        p = f(n)
+        
+        p = p_f(n)
+        B = B_f(n)
         for i in range(n_iterations):
-            s += greedy_iteration(n,p,4)
+            saved, cc = greedy_iteration(n, p, B)
+            s += saved
+            total_cc += cc
+
         Y.append(s/n_iterations)
     
-    plt.xlabel("Number of nodes")
+    total_cc /= len(range(min_n, max_n,5)) * n_iterations
+
+    plt.style.use("ggplot")
+    plt.xlabel("Graph size")
     plt.ylabel("Number of saved nodes")
     plt.plot(range(min_n, max_n,5), Y, '.',label = "Number of nodes saved")
     plt.plot(range(min_n, max_n), range(min_n, max_n), label="Total number of nodes")
+    a,b = np.polyfit(range(min_n,max_n,5), Y,1)
+    plt.plot(range(min_n, max_n,5), a*np.array(range(min_n, max_n,5))+b)
     plt.legend()
-    plt.show()
     
+
+
+    print("The slope is {}".format(a))
+    print("The average component size {}%".format(total_cc))
     return Y
 
-def f(x):
-    return 6/x
 
-Y = run_simulation(f,5,400,500)
+
+# p  functions
+def p_lin(x):
+    def g(n):
+        return x/n
+    return g
+    
+def p_log(x):
+    def g(n):
+        return x/np.log(n)
+    return g
+
+
+def p_log_log(x):
+    def g(n):
+        return x/np.log(np.log(n))
+    return g
+
+
+
+# B Functions
+def B_lin(x):
+    def g(n):
+        return n/x
+    return g
+
+def B_lin_log(x):
+    def g(n):
+        return max(1, int(x * n / (np.log(n))))
+    return g
+
+def B_cte(x):
+    def g(n):
+        return x
+    return g
+
+def B_log(x):
+    def g(n):
+        return int(x * np.log(n))
+    return g
+
+def B_log_log(x):
+    def g(n):
+        return 5+int(x * np.log(np.log(n)))
+    return g
+
+
+def B_lin_log_log(x):
+    def g(n):
+        return int(x * n / np.log(np.log(n)))
+    return g
+
+
+
+f_p = p_lin(6)
+f_B = B_log(4)
+n_max = 200
+n_iterations = 500
+
+
+Y = run_simulation(f_p,f_B,5,n_max,n_iterations)
+plt.show()
